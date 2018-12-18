@@ -1,9 +1,16 @@
 const crypto = require('crypto')
 const fs = require('fs')
 const sharp = require('sharp')
+const natsort = require('./natsort')
+const { promisify } = require('util')
+
+const stat = promisify(fs.stat)
+const readdir = promisify(fs.readdir)
+let sets, bgsets, colors
 class Robohash {
   constructor(string, hashcount = 11, ignoreext = true) {
     if (ignoreext) {
+      // TODO
       // string = removeExt(string)
     }
 
@@ -12,9 +19,6 @@ class Robohash {
 
     this.iter = 4
     this.createHash(hashcount)
-    this.sets = this.listDir(`${__dirname}/sets`)
-    this.bgsets = this.listDir(`${__dirname}/backgrounds`)
-    this.colors = this.listDir(`${__dirname}/sets/set1`)
 
     this.format = 'png'
   }
@@ -28,26 +32,33 @@ class Robohash {
     }
   }
 
-  listDir(path) {
-    return fs.readdirSync(path).filter((file) => fs.statSync(path + '/' + file).isDirectory())
+  async listDir(path) {
+    return (await readdir(path)).filter(async (file) => (await stat(path + '/' + file)).isDirectory())
   }
 
-  getListOfFiles(path) {
+  async getListOfFiles(path) {
     let chosenFiles = []
 
-    const directories = fs.readdirSync(path).filter((file) => fs.statSync(path + '/' + file).isDirectory()).map(file => path + '/' + file)
-  
-    directories.forEach(dir => {
-      const filesInDir = fs.readdirSync(dir).filter((file) => fs.statSync(dir + '/' + file).isFile()).map(file => dir + '/' + file)
+    const directories = (await readdir(path)).filter(async (file) => (await stat(path + '/' + file)).isDirectory()).map(file => path + '/' + file)
+    for (let i = 0; i < directories.length; i++) {
+      const dir = directories[i]
+      const filesInDir = (await readdir(dir)).filter(async (file) => (await stat(dir + '/' + file)).isFile()).sort().map(file => dir + '/' + file)
       const elementInList = this.hasharray[this.iter] % filesInDir.length
       chosenFiles.push(filesInDir[elementInList])
       this.iter++
-    })
-
+    }
     return chosenFiles
   }
 
-  async assemble(roboset, color, format, bgset, sizex, sizey) {
+  async assemble(roboset, color, format, bgset, sizex = 300, sizey = 300) {
+    sets = sets || this.listDir(`${__dirname}/sets`)
+    bgsets = bgsets || this.listDir(`${__dirname}/backgrounds`)
+    colors = colors || this.listDir(`${__dirname}/sets/set1`)
+
+    this.sets = await sets
+    this.bgsets = await bgsets
+    this.colors = await colors
+
     if (roboset === 'any') roboset = this.sets[this.hasharray[1] % this.sets.length]
     else if (!this.sets.includes(roboset)) roboset = this.sets[0]
 
@@ -64,12 +75,12 @@ class Robohash {
 
     if (!format) format = this.format
 
-    const roboparts = this.getListOfFiles(`${__dirname}/sets/${roboset}`)
-    let roboimage = await roboparts.slice(1).reverse().reduce(async (input, part) => {
+    const roboparts = (await this.getListOfFiles(`${__dirname}/sets/${roboset}`)).sort(natsort)
+    let roboimage = await roboparts.slice(1).reduce(async (input, part) => {
       const data = await input
       return sharp(data).overlayWith(part).toBuffer()
     }, sharp(roboparts[0]).toBuffer())
-    sharp(roboimage).raw().toFormat('png').toFile('./output.png')
+    return sharp(roboimage).resize(sizex, sizey).raw().toFormat('png').toBuffer()
   }
 }
 

@@ -4,14 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "natsort": "^2.0.0",
-    "node-walkdir": "^1.0.0",
-    "sharp": "^0.21.1",
-    "walkdir": "0.0.12"
+    "koa": "^2.6.2",
+    "koa-error": "^3.2.0",
+    "koa-router": "^7.4.0",
+    "sharp": "^0.21.1"
   }
 }
