@@ -15,5 +15,5 @@ npm run start
 
 ## Todo
 
-- [] Single Robohash Lib
-- [] Robohash CLI
+- [ ] Single Robohash Lib
+- [ ] Robohash CLI
